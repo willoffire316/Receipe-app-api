@@ -539,3 +539,10 @@ esak@esak-VirtualBox:~/mycodespace/Receipe-app-api$ docker-compose run app sh -c
 Creating network "receipe-app-api_default" with the default driver
 
 ```
+
+
+### CI / CD 
+
+ when ever we push a chnage to travis, it will spin a python server , it will install the docker image on that server and it will run these test and flake8 
+
+ if its failed to , a mail will be triggered 
