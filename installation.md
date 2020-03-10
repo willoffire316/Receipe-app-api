@@ -546,3 +546,54 @@ Creating network "receipe-app-api_default" with the default driver
  when ever we push a chnage to travis, it will spin a python server , it will install the docker image on that server and it will run these test and flake8 
 
  if its failed to , a mail will be triggered 
+
+
+
+ ### Unit Test 
+
+ # writing our first Testcase 
+
+we are creating a simple file callled `tests.py` and we are adding our testcases in there 
+we are using the django TestCase class , a simple test case look like as below 
+test name should also startes with test `test_add_numbers`
+
+ ```
+ class calcTest(TestCase):
+    
+    def test_add_numbers(self):
+        """ Test That add two Numbers Together"""
+        self.assertEqual(add(3,7), 10)
+ ```
+ # Running our First Test case 
+    docker-compose run app sh -c "python manage.py test"
+
+```
+esak@esak-VirtualBox:~/mycodespace/Receipe-app-api$ docker-compose run app sh -c "python manage.py test"
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+OK
+Destroying test database for alias 'default'...
+
+```
+
+## Unit Testing Using test Driven Framework 
+
+docker-compose run app sh -c "python manage.py test"
+docker-compose run app sh -c "python manage.py test && flake8"
+
+```
+esak@esak-VirtualBox:~/mycodespace/Receipe-app-api$ docker-compose run app sh -c "python manage.py test"
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.004s
+
+OK
+Destroying test database for alias 'default'...
+
+```
