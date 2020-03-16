@@ -26,6 +26,26 @@ The following packages were automatically installed and are no longer required:
   syslinux-common syslinux-legacy usb-creator-common
 Use 'sudo apt autoremove' to remove them.
 0 upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+
+## installing Docker step by step 
+### Step 1 
+  sudo apt-get install \
+  apt-transport-https \
+  ca-certificates \
+  curl \
+  gnupg-agent \
+  software-properties-common
+
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+  sudo add-apt-repository \
+      "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) \
+      stable"
+
+    sudo apt-get install docker-ce docker-ce-cli containerd.io
+
+
 esak@esak-VirtualBox:~$ sudo apt-get install \
 >     apt-transport-https \
 >     ca-certificates \
@@ -311,6 +331,10 @@ Processing triggers for man-db (2.8.3-2ubuntu0.1) ...
 Processing triggers for dbus (1.12.2-1ubuntu1.1) ...
 Processing triggers for fontconfig (2.12.6-0ubuntu2) ...
 Processing triggers for libc-bin (2.27-3ubuntu1) ...
+
+## Running the HelloWorld Docker 
+` sudo docker run hello-world` it will download the image and it will output the "hello-world"
+
 esak@esak-VirtualBox:~$ sudo docker run hello-world
 Unable to find image 'hello-world:latest' locally
 latest: Pulling from library/hello-world
@@ -390,16 +414,52 @@ For more examples and ideas, visit:
  https://docs.docker.com/get-started/
 
 ```
+## Lets Create docker FIle 
 
+create a docker File `Dockerfile` without any extesnion and add the content as below 
 
+first line  `FROM python:3.7-alpine` which means we are going to build a docker image from a base image , in here we are using a light weight python image , alpine means light weight in docker terms 
 
-### INstalling the required Packages 
+second line `MAINTAINER London App Developer Ltd.` who is the mainter of this docker image 
+
+third line  `ENV PYTHONUNBUFFERED 1` set this varibale is to avoid some unwanted complicatin in docker 
+
+fourth and fifth line `COPY ./requirements.txt /requirements.txt` copy the requirements.txt file into the docker /requirements.txt , `RUN pip install -r /requirements.txt` this will install all the requirements in the docker. 
+
+sixth line `RUN mkdir /app`  we are creating a directory called app in docker , `WORKDIR /app`  any container we ran from docker will start from this location , `COPY ./app/ /app` we are copying the all the files from our app to /app in docker 
+
+ninth line `RUN adduser -D user ` we are creating a new user called user and `USER user ` finally we are going to switch to that user 
+
 ```
-Django>=2.1.3,<2.2.0
+FROM python:3.7-alpine
+MAINTAINER London App Developer Ltd.
+
+ENV PYTHONUNBUFFERED 1
+
+# Install dependencies
+COPY ./requirements.txt /requirements.txt
+RUN pip install -r /requirements.txt
+
+# Setup directory structure
+RUN mkdir /app
+WORKDIR /app
+COPY ./app/ /app
+
+RUN adduser -D user
+USER user
+
+```
+
+
+### Installing the required Packages 
+```
+Django>=2.1.3,<=2.2.0
 djangorestframework>=3.11.0,<3.12.0
 ```
 
-  docker build .
+now we are going to build these softwares in the docker image 
+
+`docker build .`
 
 it will start Building the docker images 
 
@@ -451,6 +511,7 @@ Successfully built f46feff95f07
 ```
 
 ## Creating Docker-compose File 
+
 ```
 version: "3"
 
@@ -529,7 +590,7 @@ Docker Image created
   Successfully tagged receipe-app-api_app:latest
 
 
-## Djamgo Project 
+## Django Project 
 Create a New project 
 
 **Docker Command "docker-compose run sh -c "django-admin.py startproject app ." "**
@@ -547,7 +608,20 @@ Creating network "receipe-app-api_default" with the default driver
 
  if its failed to , a mail will be triggered 
 
+```
+language:   python 
+python : 
+    - "3.7"
 
+services: 
+    - docker
+
+before_script: pip install docker-compose
+
+script : 
+    - docker-compose run app sh -c "python manage.py test"
+
+```
 
  ### Unit Test 
 
@@ -597,3 +671,174 @@ OK
 Destroying test database for alias 'default'...
 
 ```
+
+
+### Lets create a Core app 
+
+`docker-compose run app sh -c "python manage.py startapp core"` it will create a new core app in our project 
+delete test.py file and create a new folder called tests and create a new file called `__init__.py` in it. 
+
+**START THE PROJECT**
+
+# STEP 1 
+### CREATE CUSTOM USER MODEL 
+
+##### create unit test First 
+
+By default we are using username as the default value we are going to override it as  email, so we are creating the userclass , also we need to create a usermanager class 
+
+lets import the required classes 
+```
+from django.contrib.auth.models import  AbstractBaseUser, BaseUserManager, PermissionsMixin
+```
+
+Now Crete a new custom user manager class , in which we are goin to override 2 methods , `create_user ` and ` createSuperuser `
+
+`class UserManager(BaseUserManager):` we are extending from the `BaseUserManager` class 
+- we are creating a new method called create_user, we provide with email and password and some etra arguments 
+- `user.set_password()` is a helper method from django which allow us to set the password in db in the hex format 
+- saving the user `user.save(using=self._db)`
+
+```
+class UserManager(BaseUserManager):
+    """ Custom user Manger """ 
+
+    def create_user(self, email, password=None, **kwargs):
+        """ create new user and savesthe user""" 
+        user = self.model(email=email, **kwargs)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user 
+
+```
+
+
+Lets create a user class 
+
+- define all the columns as fields here 
+- `objects = UserManager() ` we are creating an usermanger objects here 
+- ` USERNAME_FIELD = 'email' ` we are making email as the Primary key here 
+
+```
+# create the user model 
+
+class user(AbstractBaseUser, PermissionsMixin):
+    """Custom user model that supports email as primary"""
+
+    email = models.EmailField(max_lenght=255, unique=True)
+    name = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+
+    objects = UserManager()
+
+    USERNAME_FIELD = 'email'
+```
+
+Lets tell django to use the authentication model from the newly created user models , so in the settings.py add the below lines to it 
+
+```
+# Overriding the  default model 
+AUTH_USER_MODEL = "core.User"
+```
+
+Lets Run this and do migrations 
+
+`docker-compose run app sh -c "python manage.py makemigrations core" `
+
+
+```
+esak@esak-VirtualBox:~/mycodespace/Receipe-app-api$ docker-compose run app sh -c "python manage.py makemigrations core"
+Migrations for 'core':
+  core/migrations/0001_initial.py
+    - Create model user
+
+```
+
+now migrate the appplication 
+`docker-compose run app sh -c "python manage.py migrate "`
+
+```
+esak@esak-VirtualBox:~/mycodespace/Receipe-app-api$ docker-compose run app sh -c "python manage.py migrate core"
+Operations to perform:
+  Apply all migrations: core
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0001_initial... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying core.0001_initial... OK
+
+
+```
+**when user is created, email field should be provided**
+
+```
+def test_new_user_invalidemail(self):
+        """test creating user with no email , raise error """
+
+        with self.assertRaises(ValueError):
+            get_user_model().objects.create_user(None, 'test123')
+
+```
+
+above test will raise a value erorr , when we give the email column as null or invalid email as an value , below checks are added into the models create_user class 
+
+we have added an email validation check here , if the email is None we raise valueError as expected 
+
+```
+def create_user(self, email, password=None, **etraFields):
+        """ create new user and savesthe user""" 
+
+        # Adding validation Checks to the email 
+        if not email:
+            raise ValueError("Users must have an emil address ")
+        
+    
+```
+
+## Addsuper_user to the user Model 
+
+create a new method called` create_superuser` in the usermanger class alike below 
+
+```
+def create_superuser(self, email, password):
+        """Create super user """
+
+        user = self.create_user(email, password)
+        user.is_staff = True
+        user.is_superuser = True
+        user.save(using=self._db)
+
+        return user
+
+```
+
+test case to check whether the created user is superuser or not 
+
+```
+ def test_create_newsuper_user(self):
+        """Create super user""" 
+        user = get_user_model().objects.create_superuser(
+            email = "master@gmail.com", 
+            password ="master"
+        )
+
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.is_staff)
+```
+
+
+
+
+
+more about authentications 
+
+https://docs.djangoproject.com/en/2.2/topics/auth/customizing/#django.contrib.auth.models.BaseUserManager.normalize_email
