@@ -835,6 +835,102 @@ test case to check whether the created user is superuser or not
         self.assertTrue(user.is_staff)
 ```
 
+## Adding postgtress to docker 
+lets create a new docker image in the docker-compose.yml file 
+```
+```
+- we createed a new service called `db` and it was postgress db . we stup the database with some environment variables such as db username , db password 
+- we make sure our app depends on the db , so modify the app service in the docker-compose.yml file as below 
+    - Add enviroment varibales to the app service 
+    - also make sure app is depedent on the db services , so db services will be created first and its available in the network when we use the hostname 
+    ```
+    depends_on :
+      - db
+      ````
+
+
+Below is the Change in the Yml File 
+```
+version : "3"
+services : 
+  app:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    volumes: 
+      - ./app:/app
+    command :
+      sh -c "python manage.py runserver 0.0.0.0:8000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME = app
+      - DB_USER = postgress
+      - DB_PASSWORD = secretpassword 
+
+    depends_on :
+      - db 
+      
+
+  db: 
+    image: postgress:10-apline
+    environment:
+      - POSTGRESS_DB=app
+      - POSTGRESS_USER=postgress
+      - POSTGRESS_PASSWORD=secretpassword
+```
+
+
+Add new entry to the requirements file `psycopg2>=2.7.5,<2.8.0` 
+now edit the docker File 
+we are going to install postgress ql client and its respective packages 
+`RUN APK add --update --no-cache postgresql-client` , in the python3-alpine the package manager is apk , 
+installl temp packages 
+
+so our update docker file looks like as below 
+```
+FROM python:3.7-alpine
+MAINTAINER ESAK
+
+ENV PYTHONUNBUFFERED 1 
+
+COPY ./requirements.txt /requirements.txt
+RUN APK add --update --no-cache postgresql-client
+RUN APK add --update --no-cache --virtual .tmp-build-deps \
+        gcc libc-dev linux-headers postgresql-dev 
+RUN pip install -r requirements.txt
+RUN apk del .tmp-build-deps 
+
+
+RUN mkdir /app
+WORKDIR /app
+COPY ./app /app
+
+RUN ADDUSER -D user 
+USER user 
+
+```
+
+
+Now build the image again  `docker-compose build`
+
+
+#### add  postgress to django 
+
+go to setting.py and the below settings 
+
+```
+'default': {
+    'ENGINE': 'django.db.backends.postgresql',
+    'NAME' : os.environ.get('DB_NAME'),
+    'HOST' : os.environ.get('DB_HOST'),
+    'USER' : os.environ.get('DB_USER'),
+    'PASSWORD' : os.environ.get('DB_PASSWORD'),
+}
+```
+
+
+## Add Mock Testcases 
 
 
 
